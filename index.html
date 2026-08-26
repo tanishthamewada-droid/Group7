@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoStats India | Bhuvan LULC Explorer & Visual Map</title>
+    
+    <!-- Modern Font & Leaflet Maps CSS -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #4b5563;
+            --primary-accent: #2563eb;
+            --primary-hover: #1d4ed8;
+            --border-color: #e5e7eb;
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Side-by-Side Dual Panel Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            align-items: start;
+        }
+
+        @media (max-width: 992px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .app-card {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background-color: #f9fafb;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .icon-logo { font-size: 30px; }
+        .title-group h1 { font-size: 18px; margin: 0; }
+        .title-group p { font-size: 13px; margin: 2px 0 0; color: var(--text-secondary); }
+        .card-body { padding: 24px; }
+
+        .controls-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+        
+        select, button {
+            height: 44px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        select {
+            background-color: #f9fafb;
+            border: 1px solid var(--border-color);
+            padding: 0 12px;
+            cursor: pointer;
+        }
+
+        button {
+            background-color: var(--primary-accent);
+            color: white;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0 20px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--primary-hover); }
+        button:disabled { background-color: #9ca3af; cursor: not-allowed; }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin: 0 0 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .summary-banner {
+            background-color: #eff6ff;
+            border-left: 4px solid var(--primary-accent);
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .summary-banner p { margin: 3px 0; font-size: 14px; }
+        .summary-banner strong { color: var(--primary-accent); }
+
+        .breakdown-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .breakdown-item {
+            background-color: #f9fafb;
+            border: 1px solid var(--border-color);
+            padding: 12px 14px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breakdown-item .label { font-size: 13px; color: var(--text-secondary); }
+        .breakdown-item .value { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+
+        .loading { text-align: center; padding: 30px; color: var(--text-secondary); }
+        .error { background-color: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 16px; border-radius: 8px; }
+
+        /* Map Container Settings */
+        #map {
+            height: 520px;
+            width: 100%;
+            border-radius: 0 0 16px 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="dashboard-grid">
+        
+        <!-- LEFT PANEL: Data Dashboard (Original Modern UI) -->
+        <div class="app-card">
+            <header class="card-header">
+                <span class="icon-logo">📊</span>
+                <div class="title-group">
+                    <h1>Land Use Statistics</h1>
+                    <p>ISRO Bhuvan satellite dataset analysis</p>
+                </div>
+            </header>
+
+            <div class="card-body">
+                <div class="controls-row">
+                    <div class="form-group">
+                        <label for="district">Select District</label>
+                        <select id="district">
+                            <option value="2722" data-lat="19.11" data-lng="72.88" selected>Mumbai Suburban (MH)</option>
+                            <option value="2721" data-lat="18.96" data-lng="72.82">Mumbai City (MH)</option>
+                            <option value="2707" data-lat="18.52" data-lng="73.85">Pune (MH)</option>
+                            <option value="0701" data-lat="28.63" data-lng="77.21">Central Delhi (DL)</option>
+                            <option value="2920" data-lat="12.97" data-lng="77.59">Bengaluru Urban (KA)</option>
+                            <option value="3302" data-lat="13.08" data-lng="80.27">Chennai (TN)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="year">Survey Cycle</label>
+                        <select id="year">
+                            <option value="1112" selected>2011 - 2012</option>
+                            <option value="0506">2005 - 2006</option>
+                        </select>
+                    </div>
+
+                    <button id="fetch-btn">Fetch Data</button>
+                </div>
+
+                <div id="output-area">
+                    <p class="loading">Select options and click 'Fetch Data'.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT PANEL: Visual WMS Satellite Map -->
+        <div class="app-card">
+            <header class="card-header">
+                <span class="icon-logo">🗺️</span>
+                <div class="title-group">
+                    <h1>Spatial Visual Map (WMS)</h1>
+                    <p>Real-time visual layer overlay from ISRO Bhuvan</p>
+                </div>
+            </header>
+            <div id="map"></div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Leaflet Maps Engine Script -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    const fetchBtn = document.getElementById('fetch-btn');
+    const districtSelect = document.getElementById('district');
+    const yearSelect = document.getElementById('year');
+    const outputArea = document.getElementById('output-area');
+
+    // 1. Initialize Leaflet Map centered on Mumbai Suburban by default
+    const map = L.map('map').setView([19.11, 72.88], 10);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let wmsLayer;
+
+    // 2. Render WMS Visual Map Overlay from Bhuvan
+    function updateWmsLayer(yearCode) {
+        if (wmsLayer) map.removeLayer(wmsLayer);
+
+        const layerName = yearCode === "0506" ? 'lulc:LULC50K_0506' : 'lulc:LULC50K_1112';
+
+        wmsLayer = L.tileLayer.wms("https://bhuvan-vec1.nrsc.gov.in/bhuvan/wms", {
+            layers: layerName,
+            format: 'image/png',
+            transparent: true,
+            version: '1.1.1',
+            opacity: 0.75,
+            attribution: '© ISRO / Bhuvan NRSC'
+        }).addTo(map);
+    }
+
+    // 3. Combined Function: Updates Both Map View & Backend Statistics
+    async function loadLulcData() {
+        const distcode = districtSelect.value;
+        const year = yearSelect.value;
+        const selectedOption = districtSelect.options[districtSelect.selectedIndex];
+
+        // Pan map smoothly to chosen district's GPS coordinates
+        const lat = parseFloat(selectedOption.getAttribute('data-lat'));
+        const lng = parseFloat(selectedOption.getAttribute('data-lng'));
+        map.flyTo([lat, lng], 11);
+
+        // Update spatial satellite map overlay
+        updateWmsLayer(year);
+
+        // Fetch numerical land details from Python backend
+        outputArea.innerHTML = `<div class="loading"><p>📡 Connecting to Bhuvan...</p></div>`;
+        fetchBtn.disabled = true;
+
+        try {
+            const response = await fetch(`/api/lulc/stats/formatted?distcode=${distcode}&year=${year}`);
+            if (!response.ok) throw new Error(`Server returned status: ${response.status}`);
+
+            const data = await response.json();
+
+            let htmlContent = `<h3 class="result-title">${data.district_name || 'District Results'}</h3>`;
+            htmlContent += `
+                <div class="summary-banner">
+                    <p>Total Area: <strong>${data.total_area_sqkm} sq km</strong></p>
+                    <p>Survey Cycle: <strong>${data.year_cycle}</strong></p>
+                    <p>Data Source: <strong>ISRO Bhuvan Satellite Survey</strong></p>
+                </div>
+                <div class="breakdown-grid">
+            `;
+
+            for (const [category, value] of Object.entries(data.breakdown)) {
+                htmlContent += `
+                    <div class="breakdown-item">
+                        <span class="label">${category}</span>
+                        <span class="value">${value}</span>
+                    </div>
+                `;
+            }
+            htmlContent += `</div>`;
+            outputArea.innerHTML = htmlContent;
+
+        } catch (error) {
+            outputArea.innerHTML = `<div class="error"><p>⚠️ Error: ${error.message}</p></div>`;
+        } finally {
+            fetchBtn.disabled = false;
+        }
+    }
+
+    // Load WMS and fetch initial stats on launch
+    updateWmsLayer("1112");
+    fetchBtn.addEventListener('click', loadLulcData);
+</script>
+
+</body>
+</html>
