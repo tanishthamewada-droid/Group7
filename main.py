@@ -1,11 +1,31 @@
 import os
+from pathlib import Path
 import requests
+import sentry_sdk
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.starlette import StarletteIntegration
+
+sentry_sdk.init(
+    dsn=os.getenv("SENTRY_DSN"),
+    traces_sample_rate=1.0,
+    profiles_sample_rate=1.0,
+    send_default_pii=True,
+    integrations=[
+        StarletteIntegration(transaction_style="endpoint"),
+        FastApiIntegration(transaction_style="endpoint"),
+    ],
+)
 
 app = FastAPI()
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
 
 # Enable CORS for frontend requests
 app.add_middleware(
@@ -15,6 +35,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+BASE_DIR = Path(__file__).resolve().parent
+INDEX_FILE = BASE_DIR / "index.html"
+FALLBACK_INDEX_FILE = BASE_DIR / "index.html.html"
 
 # Store the token in the hosting provider's environment variables.
 BHUVAN_TOKEN = os.getenv("BHUVAN_TOKEN")
@@ -210,9 +234,10 @@ def parse_bhuvan_number(val):
 # Route to render the frontend page.
 @app.get("/", response_class=FileResponse)
 def home():
-    index_path = os.path.join(os.path.dirname(__file__), "index.html.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
+    use_new_frontend = os.getenv("USE_NEW_FRONTEND") == "1"
+    index_path = INDEX_FILE if use_new_frontend else FALLBACK_INDEX_FILE
+    if not index_path.exists():
+        index_path = FALLBACK_INDEX_FILE
     return FileResponse(index_path)
 
 @app.get("/api/lulc/stats")
