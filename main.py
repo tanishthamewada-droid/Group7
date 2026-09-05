@@ -234,7 +234,7 @@ def parse_bhuvan_number(val):
 # Route to render the frontend page.
 @app.get("/", response_class=FileResponse)
 def home():
-    use_new_frontend = os.getenv("USE_NEW_FRONTEND") == "1"
+    use_new_frontend = os.getenv("USE_NEW_FRONTEND", "1") == "1"
     index_path = INDEX_FILE if use_new_frontend else FALLBACK_INDEX_FILE
     if not index_path.exists():
         index_path = FALLBACK_INDEX_FILE
