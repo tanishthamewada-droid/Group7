@@ -9,3 +9,5 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
+      - key: USE_NEW_FRONTEND
+        value: "1"

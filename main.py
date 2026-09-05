@@ -37,7 +37,8 @@ app.add_middleware(
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-INDEX_FILE = BASE_DIR / "frontend.html"
+INDEX_FILE = BASE_DIR / "index.html"
+FALLBACK_INDEX_FILE = BASE_DIR / "index.html.html"
 
 # Store the token in the hosting provider's environment variables.
 BHUVAN_TOKEN = os.getenv("BHUVAN_TOKEN")
@@ -233,7 +234,11 @@ def parse_bhuvan_number(val):
 # Route to render the frontend page.
 @app.get("/", response_class=FileResponse)
 def home():
-    return FileResponse(INDEX_FILE)
+    use_new_frontend = os.getenv("USE_NEW_FRONTEND") == "1"
+    index_path = INDEX_FILE if use_new_frontend else FALLBACK_INDEX_FILE
+    if not index_path.exists():
+        index_path = FALLBACK_INDEX_FILE
+    return FileResponse(index_path)
 
 @app.get("/api/lulc/stats")
 def get_lulc_stats(distcode: str = "2722", year: str = "1112"):
